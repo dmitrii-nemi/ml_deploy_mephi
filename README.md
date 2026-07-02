@@ -180,6 +180,8 @@ curl -X POST http://127.0.0.1:5000/batch_predict \
 
 ## Docker
 
+Docker Hub image: batonhleba/mephi_ml:latest
+
 Сборка и запуск:
 
 ```bash
@@ -236,8 +238,3 @@ pytest
 ```bash
 python scripts/monitor.py
 ```
-
-## Документация
-
-- [Архитектура и MLOps](docs/ARCHITECTURE.md)
-- [План A/B-теста](docs/AB_TEST_PLAN.md)
