@@ -1,25 +1,23 @@
-# Credit Default Prediction Service
+# Сервис прогнозирования дефолта по кредитным картам
 
-Учебный production-like проект по внедрению модели машинного обучения для прогнозирования дефолта по кредитной карте в следующем месяце.
+Production-like Flask-сервис для прогнозирования дефолта по кредитной карте в следующем месяце. Проект обучает и обслуживает модели бинарной классификации на датасете UCI Default of Credit Card Clients.
 
-Датасет: `Default of Credit Card Clients Dataset` из UCI. Целевая переменная: `default.payment.next.month`.
+Docker-образ: `batonhleba/mephi_ml:latest`
 
-Docker Hub image: `batonhleba/mephi_ml:latest`
+## Возможности
 
-## Что входит в проект
+- Две версии модели для A/B-тестирования:
+  - `v1`: Logistic Regression;
+  - `v2`: Random Forest.
+- Feature engineering встроен в сохранённый `sklearn Pipeline`.
+- Артефакты моделей сохранены через `joblib`.
+- Flask API с эндпоинтами для проверки состояния, одиночного прогноза и batch-прогноза.
+- Стабильное распределение трафика 50/50 между `v1` и `v2`, если `model_version` не передан в запросе.
+- Логирование запросов в формате JSONL.
+- Dockerfile, Docker Compose, Makefile и GitHub Actions CI.
+- Документация по архитектуре, MLOps-концептам и плану A/B-теста.
 
-- обучение двух моделей бинарной классификации: `v1` и `v2`;
-- feature engineering внутри сохранённого `sklearn Pipeline`;
-- сохранение моделей в `models/*.joblib`;
-- Flask API с эндпоинтами `GET /`, `GET /health`, `POST /predict`, `POST /batch_predict`;
-- стабильное 50/50 A/B-распределение трафика, если версия модели не задана явно;
-- `risk_level` в ответе API: `low`, `medium`, `high`;
-- JSONL-логирование API-запросов в `logs/api_requests.jsonl`;
-- Dockerfile, `docker-compose.yml`, Makefile и GitHub Actions CI;
-- простой PSI-monitoring helper в `scripts/monitor.py`;
-- документация по архитектуре, MLOps-концептам, бизнес-метрикам и A/B-тесту.
-
-## Структура
+## Структура проекта
 
 ```text
 .
@@ -45,6 +43,7 @@ Docker Hub image: `batonhleba/mephi_ml:latest`
 ├── Makefile
 ├── docker-compose.yml
 ├── params.yaml
+├── pyproject.toml
 └── requirements.txt
 ```
 
@@ -55,36 +54,47 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 pip install -e .
+```
+
+Обучение моделей:
+
+```bash
 python -m credit_default_service.train
+```
+
+Запуск API:
+
+```bash
 python -m credit_default_service
 ```
 
-То же самое через Makefile:
+Сервис будет доступен по адресу `http://127.0.0.1:5000`.
+
+## Команды Makefile
 
 ```bash
 make install
 make train
 make api
+make test
+make docker-build
+make docker-run
+make monitor
 ```
-
-Сервис будет доступен на `http://127.0.0.1:5000`.
-
-## Docker
-
 
 ## API
 
-### GET `/`
+### `GET /`
 
-Возвращает краткую информацию о сервисе и endpoints.
+Возвращает краткую информацию о сервисе и доступных эндпоинтах.
 
 ```bash
 curl http://127.0.0.1:5000/
 ```
 
-### GET `/health`
+### `GET /health`
 
-Проверяет состояние сервиса и доступность сохранённых моделей.
+Проверяет готовность сервиса и список загруженных версий модели.
 
 ```bash
 curl http://127.0.0.1:5000/health
@@ -94,17 +104,16 @@ curl http://127.0.0.1:5000/health
 
 ```json
 {
-  "status": "ok",
-  "service": "credit-default-predictor",
   "available_models": ["v1", "v2"],
-  "model_load_error": null
+  "model_load_error": null,
+  "service": "credit-default-predictor",
+  "status": "ok"
 }
 ```
 
-### POST `/predict`
+### `POST /predict`
 
-Можно передавать признаки в поле `features` и явно указать `model_version`.
-Если `model_version` не указан, сервис стабильно распределит клиента между `v1` и `v2` в пропорции 50/50.
+Выполняет прогноз для одного клиента. В запросе можно явно указать `model_version`; если версия не указана, сервис распределяет запрос между `v1` и `v2` через стабильное A/B-разделение 50/50.
 
 ```bash
 curl -X POST http://127.0.0.1:5000/predict \
@@ -112,7 +121,7 @@ curl -X POST http://127.0.0.1:5000/predict \
   -d @models/sample_request.json
 ```
 
-Формат тела:
+Формат запроса:
 
 ```json
 {
@@ -150,18 +159,18 @@ curl -X POST http://127.0.0.1:5000/predict \
 
 ```json
 {
-  "model_version": "v1",
   "ab_group": "control",
+  "default_probability": 0.852718,
+  "model_version": "v1",
   "prediction": 1,
-  "default_probability": 0.712345,
-  "threshold": 0.5,
-  "risk_level": "high"
+  "risk_level": "high",
+  "threshold": 0.5
 }
 ```
 
-### POST `/batch_predict`
+### `POST /batch_predict`
 
-Batch endpoint принимает массив объектов или envelope `{"items": [...]}`.
+Выполняет прогноз для нескольких клиентов.
 
 ```bash
 curl -X POST http://127.0.0.1:5000/batch_predict \
@@ -169,11 +178,31 @@ curl -X POST http://127.0.0.1:5000/batch_predict \
   -d '{"model_version":"v2","items":[{"features":{"LIMIT_BAL":20000,"SEX":2,"EDUCATION":2,"MARRIAGE":1,"AGE":24,"PAY_0":2,"PAY_2":2,"PAY_3":-1,"PAY_4":-1,"PAY_5":-2,"PAY_6":-2,"BILL_AMT1":3913,"BILL_AMT2":3102,"BILL_AMT3":689,"BILL_AMT4":0,"BILL_AMT5":0,"BILL_AMT6":0,"PAY_AMT1":0,"PAY_AMT2":689,"PAY_AMT3":0,"PAY_AMT4":0,"PAY_AMT5":0,"PAY_AMT6":0}}]}'
 ```
 
+## Docker
+
+Сборка и запуск:
+
+```bash
+docker build -t batonhleba/mephi_ml:latest .
+docker run --rm -p 5000:5000 batonhleba/mephi_ml:latest
+```
+
+Запуск через Docker Compose:
+
+```bash
+docker compose up --build
+```
+
+Публикация образа:
+
+```bash
+docker login
+docker push batonhleba/mephi_ml:latest
+```
+
 ## Метрики моделей
 
-После обучения метрики сохраняются в `models/metrics.json`.
-
-Текущие метрики:
+Текущие метрики на тестовой выборке сохранены в `models/metrics.json`.
 
 ```json
 {
@@ -194,28 +223,21 @@ curl -X POST http://127.0.0.1:5000/batch_predict \
 }
 ```
 
-Основные технические метрики:
-
-- `precision`: доля корректных дефолтов среди клиентов, помеченных рискованными;
-- `recall`: доля найденных дефолтов среди всех реальных дефолтов;
-- `f1`: баланс precision и recall;
-- `roc_auc`: качество ранжирования клиентов по риску.
-
-## Тесты и мониторинг
+## Тесты
 
 ```bash
 pytest
+```
+
+## Мониторинг
+
+В проекте есть простой вспомогательный скрипт для оценки drift признаков через PSI:
+
+```bash
 python scripts/monitor.py
 ```
 
-Через Makefile:
-
-```bash
-make test
-make monitor
-```
-
-## Дополнительная документация
+## Документация
 
 - [Архитектура и MLOps](docs/ARCHITECTURE.md)
 - [План A/B-теста](docs/AB_TEST_PLAN.md)

@@ -1,0 +1,29 @@
+{
+  "model_version": "v1",
+  "features": {
+    "ID": 1.0,
+    "LIMIT_BAL": 20000.0,
+    "SEX": 2.0,
+    "EDUCATION": 2.0,
+    "MARRIAGE": 1.0,
+    "AGE": 24.0,
+    "PAY_0": 2.0,
+    "PAY_2": 2.0,
+    "PAY_3": -1.0,
+    "PAY_4": -1.0,
+    "PAY_5": -2.0,
+    "PAY_6": -2.0,
+    "BILL_AMT1": 3913.0,
+    "BILL_AMT2": 3102.0,
+    "BILL_AMT3": 689.0,
+    "BILL_AMT4": 0.0,
+    "BILL_AMT5": 0.0,
+    "BILL_AMT6": 0.0,
+    "PAY_AMT1": 0.0,
+    "PAY_AMT2": 689.0,
+    "PAY_AMT3": 0.0,
+    "PAY_AMT4": 0.0,
+    "PAY_AMT5": 0.0,
+    "PAY_AMT6": 0.0
+  }
+}

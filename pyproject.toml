@@ -1,0 +1,12 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "credit-default-service"
+version = "0.1.0"
+description = "Flask ML service for credit card default prediction."
+requires-python = ">=3.10"
+
+[tool.setuptools.packages.find]
+where = ["src"]

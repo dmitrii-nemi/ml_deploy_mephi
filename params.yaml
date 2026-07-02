@@ -1,0 +1,7 @@
+train:
+  test_size: 0.2
+  random_state: 42
+  threshold: 0.5
+  models:
+    v1: logistic_regression
+    v2: random_forest

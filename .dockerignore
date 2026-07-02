@@ -1,0 +1,9 @@
+.DS_Store
+.git
+.venv
+__pycache__
+.pytest_cache
+notebooks
+logs
+tests
+*.egg-info
